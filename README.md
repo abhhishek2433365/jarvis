@@ -12,7 +12,7 @@
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
 
 ## 🌐 Live Demo
-**[Try it here → ](https://abhhishek2433365.github.io/jarvis/)**
+**[Try it here → https://abhhishek2433365.github.io/jarvis/](https://abhhishek2433365.github.io/jarvis/)**
 
 ---
 
