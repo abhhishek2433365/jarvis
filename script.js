@@ -431,109 +431,24 @@ function getSystemPrompt() {
 }
 
 // ============================================================
-//  WEB SEARCH (DuckDuckGo — no API key needed)
-// ============================================================
-
-// Keywords that mean user wants CURRENT / LIVE data
-const LIVE_DATA_PATTERNS = /latest|current|today|now|news|live|score|weather|price|stock|trending|2024|2025|recently|this week|this month|who won|match|result|update|breaking|happening|right now|aaj|abhi|kal|news|khabar/i;
-
-async function webSearch(query) {
-    try {
-        // Use DuckDuckGo instant answer API (no key needed, CORS-friendly)
-        const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-        const res = await fetch(ddgUrl);
-        const data = await res.json();
-
-        let results = [];
-
-        // Abstract (main answer)
-        if (data.AbstractText && data.AbstractText.length > 20) {
-            results.push(`📖 ${data.AbstractText}`);
-        }
-
-        // Answer (instant answer like calculations, facts)
-        if (data.Answer) {
-            results.push(`⚡ ${data.Answer}`);
-        }
-
-        // Definition
-        if (data.Definition) {
-            results.push(`📝 ${data.Definition}`);
-        }
-
-        // Related topics (top 3)
-        if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-            const topics = data.RelatedTopics
-                .filter(t => t.Text)
-                .slice(0, 3)
-                .map(t => `• ${t.Text}`);
-            if (topics.length > 0) results.push(...topics);
-        }
-
-        if (results.length > 0) {
-            return results.join("\n").slice(0, 800);
-        }
-
-        // Fallback: try Wikipedia summary API
-        const wikiQuery = encodeURIComponent(query.replace(/latest|current|today|news/gi, "").trim());
-        const wikiUrl   = `https://en.wikipedia.org/api/rest_v1/page/summary/${wikiQuery}`;
-        const wikiRes   = await fetch(wikiUrl);
-        if (wikiRes.ok) {
-            const wikiData = await wikiRes.json();
-            if (wikiData.extract) {
-                return `📚 Wikipedia: ${wikiData.extract.slice(0, 500)}`;
-            }
-        }
-
-        return null; // No results found
-    } catch (e) {
-        console.log("Web search failed:", e.message);
-        return null;
-    }
-}
-
-// ============================================================
-//  OPENROUTER AI CALL  (with live web search)
+//  OPENROUTER AI CALL
 // ============================================================
 async function callAI(userMessage) {
-    if (!apiKey || apiKey.length < 10) throw new Error("API key not configured — add it in ⚙ Settings");
+    if (!apiKey || apiKey.length < 10) throw new Error("API key not configured");
 
     // Auto-detect endpoint based on key type
     let endpoint, model;
     if (apiKey.startsWith("sk-or-v1-")) {
         endpoint = "https://openrouter.ai/api/v1/chat/completions";
-        model    = (modelSelect ? modelSelect.value : null) || CONFIG.AI_MODEL;
-    } else if (apiKey.startsWith("sk-")) {
+        model    = modelSelect ? modelSelect.value : CONFIG.AI_MODEL;
+    } else {
+        // DeepSeek key
         endpoint = "https://api.deepseek.com/chat/completions";
         model    = "deepseek-chat";
-    } else {
-        endpoint = "https://openrouter.ai/api/v1/chat/completions";
-        model    = (modelSelect ? modelSelect.value : null) || CONFIG.AI_MODEL;
     }
-
-    console.log("🤖 AI Call →", model, "| Key:", apiKey.slice(0,14)+"...");
-
-    // ── Web Search for live/current queries ──────────────────
-    let webContext = "";
-    if (LIVE_DATA_PATTERNS.test(userMessage)) {
-        console.log("🔍 Live query detected — searching web...");
-        addMsg("jarvis", "🔍 Searching the web for latest information...");
-        const searchResult = await webSearch(userMessage);
-        if (searchResult) {
-            webContext = `\n\n[LIVE WEB DATA — ${new Date().toLocaleString()}]:\n${searchResult}\n[Use this data to answer. Tell user this is current info from the web.]`;
-            console.log("✅ Web data found:", searchResult.slice(0, 100));
-        } else {
-            webContext = `\n\n[Note: Web search returned no results for this query. Current date is ${new Date().toLocaleString()}. Be honest that you may not have the latest information.]`;
-        }
-        // Remove the "searching" message
-        const msgs = conversation.querySelectorAll(".msg.jarvis");
-        if (msgs.length > 0) msgs[msgs.length-1].remove();
-    }
-
-    const systemWithWeb = getSystemPrompt() + webContext;
 
     const messages = [
-        { role: "system", content: systemWithWeb },
+        { role: "system", content: getSystemPrompt() },
         ...conversationHistory.slice(-CONFIG.MAX_HISTORY),
         { role: "user", content: userMessage }
     ];
@@ -543,49 +458,28 @@ async function callAI(userMessage) {
         "Authorization": `Bearer ${apiKey}`
     };
     if (endpoint.includes("openrouter")) {
-        headers["HTTP-Referer"] = window.location.origin;
+        headers["HTTP-Referer"] = window.location.href;
         headers["X-Title"]      = "JARVIS AI";
     }
 
-    let res;
-    try {
-        res = await fetch(endpoint, {
-            method : "POST",
-            headers: headers,
-            body: JSON.stringify({
-                model      : model,
-                messages   : messages,
-                max_tokens : CONFIG.MAX_TOKENS,
-                temperature: CONFIG.TEMPERATURE
-            })
-        });
-    } catch (netErr) {
-        throw new Error("Network error — check your internet connection");
-    }
+    const res = await fetch(endpoint, {
+        method : "POST",
+        headers: headers,
+        body: JSON.stringify({
+            model      : model,
+            messages   : messages,
+            max_tokens : CONFIG.MAX_TOKENS,
+            temperature: CONFIG.TEMPERATURE
+        })
+    });
 
     if (!res.ok) {
-        let errBody = "";
-        try { errBody = await res.text(); } catch(e) {}
-        console.error("API Error:", res.status, errBody);
-
-        if (res.status === 401) throw new Error("Invalid API key (401) — go to openrouter.ai/keys and create a new one");
-        if (res.status === 402) throw new Error("No credits (402) — add free credits at openrouter.ai");
-        if (res.status === 429) throw new Error("Rate limited (429) — wait 30 seconds and try again");
-        if (res.status === 400) throw new Error("Bad request (400) — try switching model in ⚙ Settings");
-        if (res.status === 403) throw new Error("Access denied (403) — API key may be restricted");
-        throw new Error(`API error ${res.status}: ${errBody.slice(0, 150)}`);
+        const err = await res.text();
+        throw new Error(`API ${res.status}: ${err.slice(0, 100)}`);
     }
 
-    let data;
-    try { data = await res.json(); } catch(e) { throw new Error("Invalid response from API — try again"); }
-
-    if (!data.choices || !data.choices[0]) {
-        console.error("Bad API response:", data);
-        throw new Error("No response from model — try a different model in Settings");
-    }
-
-    const reply = data.choices[0].message?.content;
-    if (!reply) throw new Error("Empty reply from AI — try again");
+    const data = await res.json();
+    const reply = data.choices[0].message.content;
 
     // Update conversation history
     conversationHistory.push({ role: "user",      content: userMessage });
@@ -996,16 +890,10 @@ async function handleCommand(raw) {
             removeTyping(typingId);
             aiStatusEl.textContent = "ERROR";
             aiStatusEl.className   = "sv offline";
-            console.error("AI Error:", err);
-            addMsg("jarvis",
-                `❌ **AI Error:** ${err.message}\n\n` +
-                "**Quick fixes:**\n" +
-                "1. Open ⚙ Settings → re-paste your API key → Save\n" +
-                "2. Switch model to **Llama 3.3 70B (Free)**\n" +
-                "3. Get a free key at **openrouter.ai/keys**\n" +
-                "4. Press **F12 → Console** to see full error details"
-            );
-            showToast("AI Error — see chat", "error");
+            const r = `AI service error: ${err.message.slice(0, 60)}. Check your API key in settings.`;
+            speak(r); addMsg("jarvis", r);
+            showToast("AI Error: " + err.message.slice(0, 50), "error");
+            log("AI Error:", err);
         }
     } else {
         const r = `Say "Hey Jarvis" to activate me first, ${userName}.`;
