@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S — Iron Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- HUD Scanlines overlay -->
+<div class="scanlines"></div>
+
+<!-- Particle canvas -->
+<canvas id="particleCanvas"></canvas>
+
+<!-- Arc Reactor Core -->
+<div class="arc-reactor-bg">
+    <div class="arc-ring ring-1"></div>
+    <div class="arc-ring ring-2"></div>
+    <div class="arc-ring ring-3"></div>
+    <div class="arc-core"></div>
+</div>
+
+<div class="hud-frame">
+    <!-- Corner decorations -->
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+</div>
+
+<div class="app-wrapper">
+
+    <!-- ===== HEADER ===== -->
+    <header class="main-header">
+        <div class="header-left">
+            <div class="system-badge">
+                <span class="badge-dot" id="sysDot"></span>
+                <span id="sysLabel">INITIALIZING</span>
+            </div>
+            <div class="metric-chip">CPU <span id="cpuMeter">--</span>%</div>
+            <div class="metric-chip">NET <span id="netMeter">--</span>ms</div>
+        </div>
+
+        <div class="header-center">
+            <div class="logo-block">
+                <div class="logo-arc">
+                    <svg viewBox="0 0 120 120" class="arc-svg">
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="url(#arcGrad)" stroke-width="2" stroke-dasharray="8 4"/>
+                        <circle cx="60" cy="60" r="38" fill="none" stroke="url(#arcGrad2)" stroke-width="1" opacity="0.6"/>
+                        <polygon points="60,30 72,52 96,58 78,76 82,100 60,88 38,100 42,76 24,58 48,52" fill="none" stroke="url(#arcGrad)" stroke-width="1.5"/>
+                        <circle cx="60" cy="60" r="10" fill="url(#coreGrad)"/>
+                        <defs>
+                            <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#00d4ff"/>
+                                <stop offset="100%" stop-color="#0066ff"/>
+                            </linearGradient>
+                            <linearGradient id="arcGrad2" x1="0%" y1="100%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#ff6600"/>
+                                <stop offset="100%" stop-color="#ffcc00"/>
+                            </linearGradient>
+                            <radialGradient id="coreGrad">
+                                <stop offset="0%" stop-color="#ffffff"/>
+                                <stop offset="60%" stop-color="#00d4ff"/>
+                                <stop offset="100%" stop-color="#0066ff"/>
+                            </radialGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <h1 class="logo-text">J.A.R.V.I.S</h1>
+                <p class="logo-sub">MARK VII · INTELLIGENCE FRAMEWORK</p>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="status-stack">
+                <div class="status-row">
+                    <span class="sl">JARVIS</span>
+                    <span class="sv offline" id="jarvisStatus">OFFLINE</span>
+                </div>
+                <div class="status-row">
+                    <span class="sl">VOICE</span>
+                    <span class="sv" id="voiceStatus">IDLE</span>
+                </div>
+                <div class="status-row">
+                    <span class="sl">AI</span>
+                    <span class="sv" id="aiStatus">STANDBY</span>
+                </div>
+            </div>
+            <div class="time-display" id="clockDisplay">--:--:--</div>
+        </div>
+    </header>
+
+    <!-- ===== MAIN GRID ===== -->
+    <main class="grid-layout">
+
+        <!-- LEFT COLUMN -->
+        <aside class="left-col">
+
+            <!-- Face Recognition -->
+            <section class="panel face-panel">
+                <div class="panel-title">
+                    <span class="title-icon">⬡</span>
+                    <span>FACE RECOGNITION</span>
+                    <span class="panel-badge" id="faceBadge">INACTIVE</span>
+                </div>
+                <div class="cam-wrap">
+                    <div class="cam-overlay">
+                        <div class="scan-line"></div>
+                        <div class="corner-bracket tl"></div>
+                        <div class="corner-bracket tr"></div>
+                        <div class="corner-bracket bl"></div>
+                        <div class="corner-bracket br"></div>
+                        <div class="face-grid"></div>
+                    </div>
+                    <div id="camPlaceholder" class="cam-placeholder">
+                        <div class="cam-icon">⬡</div>
+                        <span>CAMERA OFFLINE</span>
+                    </div>
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas" style="display:none"></canvas>
+                </div>
+                <div class="face-status-bar" id="faceStatus">
+                    <span class="fs-icon">○</span>
+                    <span id="faceStatusText">System standby</span>
+                </div>
+                <div class="btn-row triple">
+                    <button class="hud-btn primary" id="startCameraBtn">
+                        <span class="btn-icon">▷</span> CAMERA
+                    </button>
+                    <button class="hud-btn secondary" id="trainFaceBtn" disabled>
+                        <span class="btn-icon">◈</span> TRAIN
+                    </button>
+                    <button class="hud-btn danger" id="clearFaceBtn">
+                        <span class="btn-icon">✕</span> CLEAR
+                    </button>
+                </div>
+            </section>
+
+            <!-- Voice Control -->
+            <section class="panel voice-panel">
+                <div class="panel-title">
+                    <span class="title-icon">⬡</span>
+                    <span>AUDIO INTERFACE</span>
+                </div>
+                <div class="waveform-container" id="waveformContainer">
+                    <canvas id="waveCanvas" width="380" height="80"></canvas>
+                    <div class="waveform-idle" id="waveIdle">
+                        <div class="idle-bars">
+                            <span></span><span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        AWAITING INPUT
+                    </div>
+                </div>
+                <div class="voice-controls">
+                    <button class="hud-btn primary wide" id="startVoiceBtn">
+                        <span class="btn-icon pulse-icon">◉</span> START LISTENING
+                    </button>
+                    <button class="hud-btn danger wide" id="stopVoiceBtn" disabled>
+                        <span class="btn-icon">◼</span> STOP
+                    </button>
+                </div>
+                <div class="voice-type-row">
+                    <span class="vt-label">VOICE PROFILE:</span>
+                    <label class="radio-pill">
+                        <input type="radio" name="voice" value="female" checked>
+                        <span>ARIA</span>
+                    </label>
+                    <label class="radio-pill">
+                        <input type="radio" name="voice" value="male">
+                        <span>JARVIS</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Command Pad -->
+            <section class="panel cmd-panel">
+                <div class="panel-title">
+                    <span class="title-icon">⬡</span>
+                    <span>COMMAND MATRIX</span>
+                </div>
+                <div class="cmd-grid">
+                    <div class="cmd-chip" onclick="injectCommand('what time is it')">⏱ TIME</div>
+                    <div class="cmd-chip" onclick="injectCommand('open youtube')">▶ YOUTUBE</div>
+                    <div class="cmd-chip" onclick="injectCommand('open github')">⌥ GITHUB</div>
+                    <div class="cmd-chip" onclick="injectCommand('calculate 25 times 4')">∑ CALC</div>
+                    <div class="cmd-chip" onclick="injectCommand('take screenshot')">◫ SHOT</div>
+                    <div class="cmd-chip" onclick="injectCommand('memory stats')">◈ MEMORY</div>
+                    <div class="cmd-chip" onclick="injectCommand('what is today date')">📅 DATE</div>
+                    <div class="cmd-chip" onclick="injectCommand('open google')">⊕ GOOGLE</div>
+                    <div class="cmd-chip" onclick="showModule('currency')">💱 CURRENCY</div>
+                    <div class="cmd-chip" onclick="showModule('weather')">🌤 WEATHER</div>
+                    <div class="cmd-chip" onclick="showModule('wiki')">📖 WIKI</div>
+                </div>
+            </section>
+
+        </aside>
+
+        <!-- CENTER COLUMN -->
+        <section class="center-col">
+
+            <!-- Conversation -->
+            <div class="panel convo-panel">
+                <div class="panel-title spread">
+                    <div>
+                        <span class="title-icon">⬡</span>
+                        <span>AI CONVERSATION CORE</span>
+                    </div>
+                    <div class="convo-actions">
+                        <button class="icon-btn" id="clearChatBtn" title="Clear chat">⌫</button>
+                        <button class="icon-btn" id="exportChatBtn" title="Export chat">↓</button>
+                    </div>
+                </div>
+                <div class="conversation" id="conversation">
+                    <!-- Messages rendered here -->
+                </div>
+                <div class="input-bar">
+                    <input type="text" id="textInput" class="hud-input" placeholder="Type a command or question..."/>
+                    <button class="hud-btn primary" id="sendTextBtn">SEND ▷</button>
+                </div>
+            </div>
+
+            <!-- Recent Commands -->
+            <div class="panel history-panel">
+                <div class="panel-title">
+                    <span class="title-icon">⬡</span>
+                    <span>COMMAND LOG</span>
+                    <span class="panel-badge live">LIVE</span>
+                </div>
+                <div id="commandHistory" class="history-list"></div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN -->
+        <aside class="right-col">
+
+            <!-- Feature Cards -->
+            <section class="panel features-panel">
+                <div class="panel-title">
+                    <span class="title-icon">⬡</span>
+                    <span>MODULES</span>
+                </div>
+                <div class="module-grid">
+                    <div class="module-card" id="webCard" onclick="showModule('web')">
+                        <div class="mod-icon">🌐</div>
+                        <div class="mod-info">
+                            <div class="mod-name">WEB CONTROL</div>
+                            <div class="mod-desc">Navigate & search</div>
+                        </div>
+                        <div class="mod-status active">●</div>
+                    </div>
+                    <div class="module-card" id="pcCard" onclick="showModule('pc')">
+                        <div class="mod-icon">💻</div>
+                        <div class="mod-info">
+                            <div class="mod-name">PC COMMANDS</div>
+                            <div class="mod-desc">System control</div>
+                        </div>
+                        <div class="mod-status" id="pcStatus">○</div>
+                    </div>
+                    <div class="module-card" id="aiCard" onclick="showModule('ai')">
+                        <div class="mod-icon">🧠</div>
+                        <div class="mod-info">
+                            <div class="mod-name">AI BRAIN</div>
+                            <div class="mod-desc">OpenRouter LLM</div>
+                        </div>
+                        <div class="mod-status" id="aiModStatus">○</div>
+                    </div>
+                    <div class="module-card" id="memCard" onclick="showModule('memory')">
+                        <div class="mod-icon">💾</div>
+                        <div class="mod-info">
+                            <div class="mod-name">MEMORY CORE</div>
+                            <div class="mod-desc">Persistent recall</div>
+                        </div>
+                        <div class="mod-status active">●</div>
+                    </div>
+                    <div class="module-card" id="calcCard" onclick="showModule('calc')">
+                        <div class="mod-icon">⚡</div>
+                        <div class="mod-info">
+                            <div class="mod-name">CALCULATOR</div>
+                            <div class="mod-desc">Math engine</div>
+                        </div>
+                        <div class="mod-status active">●</div>
+                    </div>
+                    <div class="module-card" id="noteCard" onclick="showModule('notes')">
+                        <div class="mod-icon">📋</div>
+                        <div class="mod-info">
+                            <div class="mod-name">NOTES VAULT</div>
+                            <div class="mod-desc">Save & recall</div>
+                        </div>
+                        <div class="mod-status active">●</div>
+                    </div>
+                    <div class="module-card" id="currencyCard" onclick="showModule('currency')">
+                        <div class="mod-icon">💱</div>
+                        <div class="mod-info">
+                            <div class="mod-name">CURRENCY</div>
+                            <div class="mod-desc">Live exchange rates</div>
+                        </div>
+                        <div class="mod-status active">●</div>
+                    </div>
+                    <div class="module-card" id="wikiCard" onclick="showModule('wiki')">
+                        <div class="mod-icon">📖</div>
+                        <div class="mod-info">
+                            <div class="mod-name">WIKIPEDIA</div>
+                            <div class="mod-desc">Instant knowledge</div>
+                        </div>
+                        <div class="mod-status active">●</div>
+                    </div>
+                    <div class="module-card" id="weatherCard" onclick="showModule('weather')">
+                        <div class="mod-icon">🌤</div>
+                        <div class="mod-info">
+                            <div class="mod-name">WEATHER</div>
+                            <div class="mod-desc">Live forecast</div>
+                        </div>
+                        <div class="mod-status active">●</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Memory Stats -->
+            <section class="panel stats-panel">
+                <div class="panel-title">
+                    <span class="title-icon">⬡</span>
+                    <span>SYSTEM METRICS</span>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-block">
+                        <div class="metric-val" id="totalInt">0</div>
+                        <div class="metric-key">INTERACTIONS</div>
+                    </div>
+                    <div class="metric-block">
+                        <div class="metric-val" id="totalConv">0</div>
+                        <div class="metric-key">CONVERSATIONS</div>
+                    </div>
+                    <div class="metric-block">
+                        <div class="metric-val" id="totalNotes">0</div>
+                        <div class="metric-key">NOTES SAVED</div>
+                    </div>
+                    <div class="metric-block">
+                        <div class="metric-val" id="totalCmds">0</div>
+                        <div class="metric-key">COMMANDS RUN</div>
+                    </div>
+                </div>
+                <div class="last-seen-bar">LAST SESSION: <span id="lastSeenVal">--</span></div>
+            </section>
+
+            <!-- Settings -->
+            <section class="panel settings-panel" id="settingsPanel">
+                <div class="panel-title toggle-panel" onclick="toggleSettings()">
+                    <span class="title-icon">⬡</span>
+                    <span>CONFIGURATION</span>
+                    <span class="toggle-arrow" id="settingsArrow">▼</span>
+                </div>
+                <div class="settings-body" id="settingsBody">
+                    <div class="setting-field">
+                        <label class="field-label">OPERATOR NAME</label>
+                        <input type="text" id="userName" class="hud-input sm" placeholder="Tony Stark"/>
+                    </div>
+                    <div class="setting-field">
+                        <label class="field-label">OPENROUTER API KEY</label>
+                        <div class="key-row">
+                            <input type="password" id="apiKey" class="hud-input sm" placeholder="sk-or-v1-..."/>
+                            <button class="icon-btn" id="toggleKeyBtn" onclick="toggleKeyVisibility()">👁</button>
+                        </div>
+                        <small class="field-hint">openrouter.ai/keys — Free models available</small>
+                    </div>
+                    <div class="setting-field">
+                        <label class="field-label">AI MODEL</label>
+                        <select id="modelSelect" class="hud-select">
+                            <option value="openai/gpt-oss-120b:free">GPT-OSS-120B (Free)</option>
+                            <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
+                            <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+                            <option value="deepseek/deepseek-r1:free">DeepSeek R1 (Free)</option>
+                            <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
+                            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                        </select>
+                    </div>
+                    <div class="setting-field">
+                        <label class="field-label">PERSONALITY MODE</label>
+                        <select id="personalityMode" class="hud-select">
+                            <optgroup label="── MARVEL ──">
+                                <option value="jarvis">🤖 JARVIS (Default)</option>
+                                <option value="friday">⚡ FRIDAY (Modern)</option>
+                                <option value="tony">😎 Tony Stark (Sarcastic)</option>
+                                <option value="ultron">😈 ULTRON (Dark &amp; Dramatic)</option>
+                            </optgroup>
+                            <optgroup label="── ICONIC ──">
+                                <option value="hal">🔴 HAL-9000 (Cold)</option>
+                                <option value="yoda">🌟 Yoda (Wise)</option>
+                                <option value="hermione">🧙 Hermione (Bookish)</option>
+                                <option value="detective">🕵️ Sherlock Holmes</option>
+                            </optgroup>
+                            <optgroup label="── FUN ──">
+                                <option value="comedian">🤣 Comedian (Funny)</option>
+                                <option value="hindi">🇮🇳 Hindi Mode (हिंदी)</option>
+                                <option value="assistant">🤍 Standard Assistant</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <!-- Language Selector -->
+                    <div class="setting-field" style="margin-bottom:12px">
+                        <label class="field-label">🌐 VOICE LANGUAGE</label>
+                        <select id="voiceLangSelect" class="hud-select" onchange="setVoiceLang(this.value)">
+                            <option value="en-US">🇺🇸 English (US)</option>
+                            <option value="en-GB">🇬🇧 English (UK)</option>
+                            <option value="hi-IN">🇮🇳 Hindi (हिंदी)</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-toggles">
+                        <label class="toggle-row">
+                            <input type="checkbox" id="easyMode" class="hud-check">
+                            <span class="toggle-knob"></span>
+                            <span>Easy Mode (Skip face auth)</span>
+                        </label>
+                        <label class="toggle-row">
+                            <input type="checkbox" id="debugMode" class="hud-check">
+                            <span class="toggle-knob"></span>
+                            <span>Debug Logging</span>
+                        </label>
+                        <label class="toggle-row">
+                            <input type="checkbox" id="autoListen" class="hud-check" checked>
+                            <span class="toggle-knob"></span>
+                            <span>Auto-Resume Listening</span>
+                        </label>
+                        <label class="toggle-row">
+                            <input type="checkbox" id="soundFx" class="hud-check" checked>
+                            <span class="toggle-knob"></span>
+                            <span>Sound Effects</span>
+                        </label>
+                    </div>
+                    <button class="hud-btn primary wide" id="saveSettingsBtn">
+                        ◈ SAVE CONFIGURATION
+                    </button>
+                </div>
+            </section>
+
+        </aside>
+
+    </main>
+</div>
+
+<!-- ===== MODULE DRAWER ===== -->
+<div id="moduleDrawer" class="module-drawer">
+    <div class="drawer-header">
+        <span id="drawerTitle">MODULE</span>
+        <button class="icon-btn" onclick="closeDrawer()">✕</button>
+    </div>
+    <div id="drawerContent" class="drawer-content"></div>
+</div>
+<div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+
+<!-- ===== TOAST ===== -->
+<div id="toastStack" class="toast-stack"></div>
+
+<!-- ===== ACTIVATION OVERLAY ===== -->
+<div id="activationOverlay" class="activation-overlay" style="display:none">
+    <div class="activation-ring"></div>
+    <div class="activation-text" id="activationText">JARVIS ACTIVATED</div>
+</div>
+
+<!-- Scripts moved below theme switcher -->
+
+<!-- ===== THEME SWITCHER (Side Panel) ===== -->
+<div class="theme-switcher" id="themeSwitcher">
+    <div class="theme-switcher-label">THEME</div>
+    <div class="theme-dot active" data-theme="default" onclick="applyTheme('default')">
+        <span class="theme-dot-tip">JARVIS</span>
+    </div>
+    <div class="theme-dot" data-theme="avengers" onclick="applyTheme('avengers')">
+        <span class="theme-dot-tip">AVENGERS</span>
+    </div>
+    <div class="theme-dot" data-theme="cyberpunk" onclick="applyTheme('cyberpunk')">
+        <span class="theme-dot-tip">CYBERPUNK</span>
+    </div>
+    <div class="theme-dot" data-theme="ocean" onclick="applyTheme('ocean')">
+        <span class="theme-dot-tip">OCEAN</span>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
