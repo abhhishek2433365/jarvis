@@ -71,7 +71,7 @@ Just open the live demo link above in **Chrome or Edge**
 ### Local (Full PC Control)
 \```bash
 # Clone the repo
-git clone https://github.com/YOUR-USERNAME/jarvis.git
+git clone https://github.com/abhhishek2433365/jarvis
 cd jarvis
 
 # Install server dependencies
